@@ -56,6 +56,7 @@ def get_db():
 
 
 # Closes the database connection stored in the session.
+# noinspection PyUnusedLocal
 @app.teardown_appcontext
 def close_connection(e):
     db = getattr(g, '_database', None)
@@ -97,9 +98,9 @@ def get_for_range(device_id=None, from_time=None, to_time=None):
         # If one of these are not given for some reason, return a 400 error.
         abort(400)
     else:
-        if not isinstance(from_time, int) and ISO_REGEX.match(from_time):
+        if isinstance(from_time, str) and ISO_REGEX.match(from_time):
             from_time = int(dateutil.parser.parse(from_time, default=DEFAULT_DATETIME).timestamp())
-        if not isinstance(to_time, int) and ISO_REGEX.match(to_time):
+        if isinstance(to_time, str) and ISO_REGEX.match(to_time):
             to_time = int(dateutil.parser.parse(to_time, default=DEFAULT_DATETIME).timestamp())
 
         conn = get_db()
@@ -107,11 +108,13 @@ def get_for_range(device_id=None, from_time=None, to_time=None):
 
         with conn:
             if device_id == 'all':
+                # If this is for all devices, use a dictionary - as that's what the test case requires.
                 ping_times = dict()
 
                 cursor.execute("SELECT device_id, time FROM PingTimes LEFT JOIN Devices ON PingTimes.id = Devices.id "
                                "WHERE time >= ? AND time < ?", (from_time, to_time))
 
+                # Fill the device keys with a list of times.
                 for row in cursor.fetchall():
                     if not row[0] in ping_times:
                         ping_times[row[0]] = list()
@@ -153,6 +156,7 @@ def get_devices():
     return json.dumps(data)
 
 
+# Call the schema initialization
 initialize_schema()
 
 # Run the webserver
